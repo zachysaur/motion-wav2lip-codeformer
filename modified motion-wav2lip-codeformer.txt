@@ -1,0 +1,56 @@
+import os
+import cv2
+import ffmpeg
+from tqdm import tqdm
+
+restoredFramesPath = '/content/CodeFormer/results/images_0.7/final_results/'
+processedVideoOutputPath = '/content/output'
+
+dir_list = os.listdir(restoredFramesPath)
+dir_list.sort()
+
+batchSize = 600
+
+# Declare size outside the loop
+size = None
+
+for i in tqdm(range(0, len(dir_list), batchSize)):
+    start, end = i, i + batchSize
+    print("Processing batch ", start, end)
+
+    output_video_path = os.path.join(processedVideoOutputPath, f'batch_{str(i).zfill(4)}.avi')
+    print("Writing video to", output_video_path)
+
+    out = cv2.VideoWriter()  # VideoWriter object for the current batch
+
+    for count, filename in enumerate(tqdm(dir_list[start:end])):
+        filename = os.path.join(restoredFramesPath, filename)
+        img = cv2.imread(filename)
+        if img is None:
+            continue
+
+        height, width, layers = img.shape
+        if size is None:
+            size = (width, height)
+            out = cv2.VideoWriter(
+                output_video_path,
+                cv2.VideoWriter_fourcc(*'XVID'), 30, size
+            )
+
+        out.write(img)
+
+    if out is not None:
+        out.release()
+
+# Generate audio video
+audio_path = '/content/input/3.mp3'
+video_path = os.path.join(processedVideoOutputPath, 'batch_0000.avi')
+output_final_path = '/content/output/final.mp4'
+
+print("合并视音频")
+try:
+    out = ffmpeg.output(ffmpeg.input(video_path), ffmpeg.input(audio_path), output_final_path)
+    out.run()
+    print("恭喜您，音视频合并完成，存放在", output_final_path)
+except ffmpeg.Error as e:
+    print("Error during FFmpeg run:", e)
